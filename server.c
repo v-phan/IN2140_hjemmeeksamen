@@ -11,7 +11,10 @@
 #define yourPORT 2022
 #define IP "127.0.0.1"
 #define BUFSIZE 255
-// #define unassigned "0"
+
+
+unsigned char *unassigned = 0x00;
+
 float prob;
 int port, files;
 int ID = 77;
@@ -78,28 +81,30 @@ void sendMessage(unsigned char packet[]){
                 sizeof(packet), 
                 0, 
                 (struct sockaddr*)&dest_addr, 
-                sizeof(struct sockaddr_in) );
+                sizeof(struct sockaddr_in));
 
     check_error(wc, "sendto");
     close(fd);
 }
 
 void check_flags(unsigned char *flags, unsigned char message[]){
-    unsigned char *pktseq, *ackseq, unassigned;
+    unsigned char *pktseq, *ackseq;
     int senderID, recvID, payload;
     unsigned char *metadata = 0b00001000;
 
     if(flags == 0x01){
-        printf("This is a connect request\n");
+        printf("This is a connect request: Sending accept connection - packet\n ");
+
         unsigned char packet[5];
         recvID = message[3];
         senderID = ID;
         packet[0] = 0x10;
         packet[1] = metadata;
+        packet[2] = unassigned;
         packet[3] = senderID;
         packet[4] = recvID;
         sendMessage(packet);
-        printf("Success, we are connected, BABY!\n Server %i connected to client %i\n", senderID, recvID);
+        printf("Success, we are connected, BABY! Server %i connected to client %i\n", senderID, recvID);
     }
     else if(flags == 0x02){
         printf("This is a connect termination\n");

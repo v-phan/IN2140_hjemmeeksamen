@@ -12,13 +12,13 @@
 #define yourPORT 2021
 #define IP "127.0.0.1"
 #define BUFSIZE 255
-// #define unassigned "0"
 
 
 float prob;
 int id;
 int port;
 char *ip;
+unsigned char *unassigned = 0x00;
 
 void check_error(int res, char *msg){
     if (res == -1) {
@@ -50,18 +50,18 @@ void check_arguments(int argc, char *argv[]){
 
 
 void sendConnectReq(){
-    int fd, rc, wc;
-    unsigned char *pktseq, *ackseq, unassigned;
-    int senderID, recvID, payload;
+    int fd, wc;
+    unsigned char *pktseq, *ackseq;
+    int *senderID, *recvID;
     recvID = 0;
     senderID = id;
 
-    
     unsigned char *flag = 0x01;
     unsigned char *metadata = 0b00001000;
-    char packet[BUFSIZE];
+    char packet[5];
     packet[0] = flag;
     packet[1] = metadata;
+    packet[2] = unassigned;
     packet[3] = senderID;
     packet[4] = recvID;
 
@@ -95,7 +95,7 @@ void sendConnectReq(){
 }
 
 void sendMessage(){
-    int fd, rc, wc;
+    int fd,  wc;
     
     unsigned char *msg = 0x01;
     unsigned char *metadata = 0b00001000;
@@ -134,6 +134,7 @@ void sendMessage(){
 
 void listenTo(){
      int fd, rc;
+
     
     struct sockaddr_in my_addr, src_addr;
     unsigned char packet[BUFSIZE];
@@ -160,10 +161,10 @@ void listenTo(){
 
 void check_flags(unsigned char *flags, unsigned char message[]){
     unsigned char *pktseq, *ackseq, unassigned;
-    int senderID, recvID, metadata, payload;
+    int *senderID, recvID, metadata, payload;
 
     if(flags == 0x01){
-        printf("This is a connect request\n");
+        printf("This is a connect request: Sending accept connection - packet\n ");
     }
     else if(flags == 0x02){
         printf("This is a connect termination \n");
@@ -177,7 +178,9 @@ void check_flags(unsigned char *flags, unsigned char message[]){
         printf("This packet is an ACK\n");
     }
     else if(flags == 0x10){
-        printf("This packet accepts a connect request \n");
+        senderID = message[3];
+        recvID = id;
+        printf("We are connected baby! Client %i is connected to server %i\n", recvID, senderID);
     }
     else if(flags == 0x20){
         printf("This packet refuses a connect request \n");
@@ -195,7 +198,7 @@ int main (int argc, char *argv[]){
     // unsigned char *flags, *pktseq, *ackseq, unassigned;
     // int senderID, recvID, metadata, payload;
     srand(time(NULL));
-    id = rand();
+    id = rand() % 100;
     sendConnectReq();
     
 }
