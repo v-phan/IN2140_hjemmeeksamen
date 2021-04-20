@@ -31,6 +31,26 @@ void rdp_accept(){
 
 }
 
+unsigned char *createPacket( unsigned char *flag,
+    unsigned char *ackseq,
+    unsigned char *pktseq,
+    int senderID,
+    int recvID,
+    int metadata,
+    unsigned char *payload){
+        unsigned char *packet = malloc(20+1);
+        packet[0] = flag;
+        packet[1] = pktseq;
+        packet[2] = ackseq;
+        packet[3] = unassigned;
+        packet[4] = senderID;
+        packet[5] = recvID;
+        packet[6] = metadata;
+        packet[7] = payload;
+        packet[8] = '\0';
+        return packet;
+}
+
 //Behandler argumenter fra kommandolinje
 void check_arguments(int argc, char *argv[]){
     
@@ -53,12 +73,8 @@ void check_arguments(int argc, char *argv[]){
 }
 
 
-void sendMessage(unsigned char packet[]){
+void sendMessage(unsigned char *packet){
     int fd, rc, wc;
-    
-    unsigned char *msg = 0x02;
-    unsigned char *metadata = 0b00001000;
-
 
     struct sockaddr_in dest_addr;
     struct in_addr ip_addr;
@@ -84,43 +100,50 @@ void sendMessage(unsigned char packet[]){
                 sizeof(struct sockaddr_in));
 
     check_error(wc, "sendto");
+    free(packet);
     close(fd);
 }
 
-void check_flags(unsigned char *flags, unsigned char message[]){
-    unsigned char *pktseq, *ackseq;
-    int senderID, recvID, payload;
-    unsigned char *metadata = 0b00001000;
+void check_flags(unsigned char *flag, unsigned char message[]){
+    unsigned char *pktseq, *ackseq, *payload, *metadata;
+    int senderID, recvID;
+    pktseq = message[1];
+    ackseq = message[2];
+    recvID = message[4];
+    metadata = message[6];
+    payload = message[7];
 
-    if(flags == 0x01){
-        printf("This is a connect request: Sending accept connection - packet\n ");
-
-        unsigned char packet[5];
-        recvID = message[3];
-        senderID = ID;
-        packet[0] = 0x10;
-        packet[1] = metadata;
-        packet[2] = unassigned;
-        packet[3] = senderID;
-        packet[4] = recvID;
+    if(flag == 0x01){
+        printf("This is a connect request: Sending accept connection - packet\n");
+        unsigned char *packet = createPacket(0x10,0x00,0x00,ID, recvID,0b00001000,0x00);
+        // unsigned char packet[8];
+        // metadata = 0b00001000;
+        // packet[0] = 0x10;
+        // packet[1] = "";
+        // packet[2] = "";
+        // packet[3] = unassigned;
+        // packet[4] = senderID;
+        // packet[5] = recvID;
+        // packet[6] = metadata;
+        // packet[7] = "";
         sendMessage(packet);
-        printf("Success, we are connected, BABY! Server %i connected to client %i\n", senderID, recvID);
+        printf("Success, we are connected, BABY! Server %i connected to client %i\n", ID, recvID);
     }
-    else if(flags == 0x02){
+    else if(flag == 0x02){
         printf("This is a connect termination\n");
 
     }
-    else if(flags == 0x04){
+    else if(flag == 0x04){
         printf("This packet contains data\n");
 
     }
-    else if(flags == 0x08){
+    else if(flag == 0x08){
         printf("This packet is an ACK\n");
     }
-    else if(flags == 0x10){
+    else if(flag == 0x10){
         printf("This packet accepts a connect request\n");
     }
-    else if(flags == 0x20){
+    else if(flag == 0x20){
         printf("This packet refuses a connect request\n");
     }
     else{
@@ -163,6 +186,8 @@ int main (int argc, char *argv[]){
     while(1){
         listenTo();
     }
+
+
     return EXIT_SUCCESS;
 
    

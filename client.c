@@ -15,7 +15,7 @@
 
 
 float prob;
-int id;
+int ID;
 int port;
 char *ip;
 unsigned char *unassigned = 0x00;
@@ -47,23 +47,54 @@ void check_arguments(int argc, char *argv[]){
     sscanf(s,"%f",&prob);
 }
 
+unsigned char *createPacket( unsigned char *flag,
+    unsigned char *ackseq,
+    unsigned char *pktseq,
+    int senderID,
+    int recvID,
+    int metadata,
+    unsigned char *payload){
+        unsigned char *packet = malloc(20+1);
+        packet[0] = flag;
+        packet[1] = pktseq;
+        packet[2] = ackseq;
+        packet[3] = unassigned;
+        packet[4] = senderID;
+        packet[5] = recvID;
+        packet[6] = metadata;
+        packet[7] = payload;
+        packet[8] = '\0';
+        return packet;
+}
+
 
 
 void sendConnectReq(){
-    int fd, wc;
-    unsigned char *pktseq, *ackseq;
-    int *senderID, *recvID;
-    recvID = 0;
-    senderID = id;
 
-    unsigned char *flag = 0x01;
-    unsigned char *metadata = 0b00001000;
-    char packet[5];
-    packet[0] = flag;
-    packet[1] = metadata;
-    packet[2] = unassigned;
-    packet[3] = senderID;
-    packet[4] = recvID;
+    int fd, wc;
+    unsigned char *packet = createPacket(0x01,0x00,0x00,ID, 0,0b00001000,0x00);
+    // unsigned char *pktseq, *ackseq, *payload;
+    // int *senderID, *recvID;
+    // pktseq = "";
+    // ackseq = "";
+    // payload = "";
+    
+    // recvID = 0;
+    // senderID = ID;
+
+    // unsigned char *flag = 0x01;
+    // unsigned char *metadata = 0b00001000;
+    // char packet[8];
+    // packet[0] = flag;
+    // packet[1] = pktseq;
+    // packet[2] = ackseq;
+    // packet[3] = unassigned;
+    // packet[4] = senderID;
+    // packet[5] = recvID;
+    // packet[6] = metadata;
+    // packet[7] = payload;
+
+
 
     struct sockaddr_in dest_addr;
     struct in_addr ip_addr;
@@ -90,6 +121,7 @@ void sendConnectReq(){
 
     check_error(wc, "sendto");
     close(fd);
+    free(packet);
     listenTo();
 
 }
@@ -160,8 +192,17 @@ void listenTo(){
 }
 
 void check_flags(unsigned char *flags, unsigned char message[]){
-    unsigned char *pktseq, *ackseq, unassigned;
-    int *senderID, recvID, metadata, payload;
+    unsigned char *pktseq, *ackseq, *payload, *metadata;
+    int serverID, clientID;
+    pktseq = message[1];
+    ackseq = message[2];
+    serverID = message[4];
+    clientID = message[5];
+
+    // senderID = ID;
+    metadata = message[6];
+    payload = message[7];
+    
 
     if(flags == 0x01){
         printf("This is a connect request: Sending accept connection - packet\n ");
@@ -172,21 +213,19 @@ void check_flags(unsigned char *flags, unsigned char message[]){
     }
     else if(flags == 0x04){
         printf("This packet contains data\n");
-
     }
     else if(flags == 0x08){
         printf("This packet is an ACK\n");
     }
     else if(flags == 0x10){
-        senderID = message[3];
-        recvID = id;
-        printf("We are connected baby! Client %i is connected to server %i\n", recvID, senderID);
+        connected = 1;
+        printf("We are connected baby! Client %i is connected to server %i\n", clientID, serverID );
     }
     else if(flags == 0x20){
         printf("This packet refuses a connect request \n");
     }
     else{
-        printf("Packet not recognized: Vi mottok \n");
+        printf("Packet not recognized\n");
     }
 
 }
@@ -198,7 +237,10 @@ int main (int argc, char *argv[]){
     // unsigned char *flags, *pktseq, *ackseq, unassigned;
     // int senderID, recvID, metadata, payload;
     srand(time(NULL));
-    id = rand() % 100;
+    ID = rand() % 100;
+    
     sendConnectReq();
+    
+
     
 }
