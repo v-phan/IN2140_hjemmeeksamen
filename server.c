@@ -1,3 +1,5 @@
+//Sekvensnummer pakke starter på 1 ved client's connection request.
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
@@ -27,13 +29,9 @@ void check_error(int res, char *msg){
     }
 }
 
-void rdp_accept(){
-
-}
-
 unsigned char *createPacket( unsigned char *flag,
-    unsigned char *ackseq,
     unsigned char *pktseq,
+    unsigned char *ackseq,
     int senderID,
     int recvID,
     int metadata,
@@ -104,6 +102,19 @@ void sendMessage(unsigned char *packet){
     close(fd);
 }
 
+//Metode for å akseptere connection request fra en client
+int rdp_accept(int senderID, int recvID){
+    unsigned char *packet = createPacket(0x10,2,1,senderID, recvID,0b00001000,0x00);
+    sendMessage(packet);
+    rdp_listen();
+    
+}
+
+void rdp_refuse(int senderID, int recvID){
+    unsigned char *packet = createPacket(0x20,2,1,senderID, recvID,0b00001000,0x00);
+    sendMessage(packet);
+}
+
 void check_flags(unsigned char *flag, unsigned char message[]){
     unsigned char *pktseq, *ackseq, *payload, *metadata;
     int senderID, recvID;
@@ -114,20 +125,10 @@ void check_flags(unsigned char *flag, unsigned char message[]){
     payload = message[7];
 
     if(flag == 0x01){
-        printf("This is a connect request: Sending accept connection - packet\n");
-        unsigned char *packet = createPacket(0x10,0x00,0x00,ID, recvID,0b00001000,0x00);
-        // unsigned char packet[8];
-        // metadata = 0b00001000;
-        // packet[0] = 0x10;
-        // packet[1] = "";
-        // packet[2] = "";
-        // packet[3] = unassigned;
-        // packet[4] = senderID;
-        // packet[5] = recvID;
-        // packet[6] = metadata;
-        // packet[7] = "";
-        sendMessage(packet);
-        printf("Success, we are connected, BABY! Server %i connected to client %i\n", ID, recvID);
+        printf("Connection request from  client %i: Sending accept connection - packet\n", recvID);
+        rdp_accept(ID,recvID);
+        int connected;
+        rdp_listen();
     }
     else if(flag == 0x02){
         printf("This is a connect termination\n");
@@ -138,7 +139,9 @@ void check_flags(unsigned char *flag, unsigned char message[]){
 
     }
     else if(flag == 0x08){
-        printf("This packet is an ACK\n");
+        if(pktseq == 3){
+            printf("Success, we are connected, BABY! Server %i connected to client %i\n", ID, recvID);
+        }
     }
     else if(flag == 0x10){
         printf("This packet accepts a connect request\n");
@@ -152,7 +155,8 @@ void check_flags(unsigned char *flag, unsigned char message[]){
 
 }
 
-void listenTo(){
+//Søker etter nye tilkoblinger
+void rdp_listen(){
      int fd, rc;
     
     struct sockaddr_in my_addr, src_addr;
@@ -171,10 +175,41 @@ void listenTo(){
     rc = recv(fd, message, BUFSIZE-1,0 );
     check_error(rc, "recv");
     message[rc] = 0;
+    close(fd);
 
     check_flags(message[0], message);
 
+}
+
+int rdp_accept_ack(int senderID){
+    int fd, rc;
+    
+    struct sockaddr_in my_addr, src_addr;
+    unsigned char message[BUFSIZE];
+
+    fd = socket(AF_INET, SOCK_DGRAM,0);
+
+    check_error(fd,"socket");
+
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_port = htons(myPORT);
+    my_addr.sin_addr.s_addr = INADDR_ANY;
+
+    rc = bind(fd, (struct sockaddr*)&my_addr, sizeof(struct sockaddr_in));
+    check_error(rc, "bind");
+    rc = recv(fd, message, BUFSIZE-1,0 );
+    check_error(rc, "recv");
     close(fd);
+    message[rc] = 0;
+    printf("Running check of accept ack %i\n", message[4]);
+    if(message[0] == 0x08 && senderID == message[4]){
+        return 1;
+    }
+    else{
+        check_flags(message[0], message);   
+        return 0;
+    }
+
 }
 
 int main (int argc, char *argv[]){
@@ -182,9 +217,9 @@ int main (int argc, char *argv[]){
     // check_arguments(argc, argv);
     // set_loss_probability(prob);
 
-    // listenTo();
+    // rdp_listen();
     while(1){
-        listenTo();
+        rdp_listen();
     }
 
 
