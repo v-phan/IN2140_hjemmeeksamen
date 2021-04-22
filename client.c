@@ -51,7 +51,7 @@ void check_arguments(int argc, char *argv[]){
 unsigned char *createPacket( unsigned char *flag,
     unsigned char *pktseq,
     unsigned char *ackseq,
-    int senderID,
+    unsigned senderID,
     int recvID,
     int metadata,
     unsigned char *payload){
@@ -60,8 +60,8 @@ unsigned char *createPacket( unsigned char *flag,
         packet[1] = pktseq;
         packet[2] = ackseq;
         packet[3] = unassigned;
-        packet[4] = senderID;
-        packet[5] = recvID;
+        packet[4] = (unsigned char)senderID;
+        packet[5] = (unsigned char)recvID;
         packet[6] = metadata;
         packet[7] = payload;
         packet[8] = '\0';
@@ -73,8 +73,10 @@ unsigned char *createPacket( unsigned char *flag,
 void rdp_connect(){
 
     int fd, wc, rc;
-
+    printf("Legger til ID %i\n", ID);
     unsigned char *packet = createPacket(0x01,1,0x00,ID, 0,0b00001000,0x00);
+    printf("La til ID %i\n", packet[4]);
+
 
     struct sockaddr_in dest_addr;
     struct in_addr ip_addr;
@@ -208,7 +210,7 @@ void check_flags(unsigned char *flag, unsigned char message[]){
     }
     else if(flag == 0x10){
         rdp_ack(pktseq+1, pktseq);
-        printf("We are connected baby! Client %i is connected to server %i\n", clientID, serverID );
+        printf("We are connected baby! Client %i is connected to server %i\n", ID, serverID );
     }
     else if(flag == 0x20){
         printf("This packet refuses a connect request \n");
@@ -225,8 +227,18 @@ int main (int argc, char *argv[]){
     // set_loss_probability(prob);
     // unsigned char *flags, *pktseq, *ackseq, unassigned;
     // int senderID, recvID, metadata, payload;
-    srand(time(NULL));
+    srand(time(0));
     ID = rand() % 1000;
+    // printf("%i\n", ID);
+    
+    // ID = rand() % 1000;
+    // printf("%i\n", ID);
+    
+    // ID = rand() % 1000;
+    // printf("%i\n", ID);
+    
+    // ID = rand() % 1000;
+    // printf("%i\n", ID);
     
     rdp_connect();
     

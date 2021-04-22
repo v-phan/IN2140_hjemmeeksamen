@@ -41,8 +41,8 @@ unsigned char *createPacket( unsigned char *flag,
         packet[1] = pktseq;
         packet[2] = ackseq;
         packet[3] = unassigned;
-        packet[4] = senderID;
-        packet[5] = recvID;
+        packet[4] = (unsigned char)senderID;
+        packet[5] = (unsigned char)recvID;
         packet[6] = metadata;
         packet[7] = payload;
         packet[8] = '\0';
